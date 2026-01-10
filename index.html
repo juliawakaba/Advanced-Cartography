@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta property="og:title" content="Advanced Cartography: The Price of Peace">
+    <meta property="og:description" content="A spatial analysis of SDG 2: Zero Hunger vs Political Stability in Africa.">
+    <meta property="og:image" content="images/sdg2.png">
+    <title>SDG 2 – Zero Hunger</title>
+
+    <!-- Leaflet CSS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <style>
+        html, body {
+          height: 100%;
+          margin: 0;
+          font-family: 'Segoe UI', Arial, sans-serif;
+          background-color: #f4f4f4;
+          color: #333;
+        }
+
+        #map {
+          height: 100vh;
+          width: 100%;
+          z-index: 1;
+        }
+
+        .map-header {
+          position: absolute;
+          top: 20px;
+          left: 20px;
+          z-index: 1000;
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(8px);
+          padding: 20px;
+          border-radius: 5px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+          border-left: 5px solid #DDA63A; /* Official SDG 2 Yellow */
+          max-width: 450px;
+      }
+
+      .header-content {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+      }
+
+      .icon-container img {
+          width: 85px;
+          height: auto; /* Maintains aspect ratio */
+          display: block;
+      }
+
+      .text-container {
+          flex: 1;
+      }
+
+      .project-tag {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          color: #888;
+          text-transform: uppercase;
+          display: block;
+          margin-bottom: 4px;
+      }
+
+      .map-header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 800;
+          color: #9b59b6;
+          line-height: 1.1;
+      }
+
+      .header-divider {
+          border: 0;
+          height: 1px;
+          background: #eee;
+          margin: 12px 0;
+      }
+
+      .description {
+          margin: 0;
+          font-size: 13px;
+          color: #444;
+          line-height: 1.6;
+      }
+
+      .description strong {
+          color: #DDA63A; /* Highlights the SDG goal name in the brand color */
+      }
+
+      /* Refined Legend Style */
+      .legend {
+          background: rgba(255, 255, 255, 0.9) !important;
+          backdrop-filter: blur(5px);
+          border-radius: 8px;
+          border: none !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+          line-height: 18px;
+          color: #333;
+      }
+
+      .legend i {
+          border-radius: 3px;
+      }
+
+      /* Leaflet control placement tweak */
+      .leaflet-top.leaflet-left {
+          margin-top: 230px; 
+          margin-left: 10px;
+      }
+        .legend {
+          background: white;
+          padding: 8px;
+          font-size: 12px;
+          color: #333;
+        }
+        .legend i {
+          width: 18px;
+          height: 18px;
+          float: left;
+          margin-right: 8px;
+          opacity: 0.8;
+        }
+
+        .ball-shadow {
+          filter:
+            drop-shadow(0 2px 3px rgba(0,0,0,0.4))
+            drop-shadow(0 6px 10px rgba(0,0,0,0.25));
+        }
+        .leaflet-interactive.ball-shadow {
+          background: radial-gradient(
+            circle at 30% 30%,
+            rgba(255,255,255,0.6),
+            rgba(255,255,255,0) 60%
+          );
+        }
+
+        /* Target the legend specifically to move it 10px to the left */
+        .pi-legend-container {
+            margin-left: 20px !important; /* Negative margin moves it closer to the left edge */
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(5px);
+            padding: 12px !important;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border-top: 3px solid #DDA63A; /* Official SDG 2 Color */
+        }
+
+
+    </style>
+</head>
+
+<body>
+
+  <div class="map-header">
+    <div class="header-content">
+        <div class="icon-container">
+            <img src="images/sdg2.png" alt="SDG 2 Icon">
+        </div>
+        
+        <div class="text-container">
+            <span class="project-tag">Advanced Cartography</span>
+            <h1>The Price of Peace</h1>
+            <hr class="header-divider">
+            <p class="description">
+                <strong>SDG 2 | Zero Hunger</strong><br>
+                Examining the Link Between <em>Prevalence of Undernourishment (POU)</em> 
+                vs. <em>Political Stability</em> in Africa (2023).
+            </p>
+        </div>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+const map = L.map('map').setView([5, 20], 4);
+
+// map.createPane('piPane');
+// map.getPane('piPane').style.zIndex = 650; // top layer
+// map.getPane('piPane').style.pointerEvents = 'auto';
+
+// Example: POU layers
+const pouLow = L.layerGroup();
+const pouMedium = L.layerGroup();
+const pouHigh = L.layerGroup();
+
+// PI layers by size
+const piHigh = L.layerGroup();
+const piMedium = L.layerGroup();
+const piLow = L.layerGroup();
+
+
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+function getPouColor(d) {
+  if (d === 0 || d === null || isNaN(d)) return '#cccccc'; // gray for missing data
+  return d > 40 ? '#4a2c0a' :   // dark brown
+         d > 30 ? '#7a4a1b' :
+         d > 20 ? '#a9712a' :
+         d > 10 ? '#d1a054' :
+         d > 5  ? '#e8c97a' :
+                  '#f5e6b3';  // light gold
+}
+
+function pouStyle(feature) {
+  const value = Number(feature.properties.prevl2023);
+
+  return {
+    fillColor: getPouColor(value),
+    weight: 1,
+    color: '#ffffff',
+    fillOpacity: 0.8
+  };
+}
+
+function onEachPou(feature, layer) {
+  layer.bindPopup(
+    `<strong>${feature.properties.ADM0_NAME}</strong><br>
+     POU 2023: ${feature.properties.prevl2023}`
+  );
+}
+
+let pou;
+
+fetch('peace_data/pou.geojson')
+  .then(r => r.json())
+  .then(data => {
+    pou = L.geoJSON(data, {
+      style: pouStyle,
+      onEachFeature: onEachPou
+    }).addTo(map);
+  });
+
+function getPiRadius(value) {
+    const v = Number(value);
+    if (isNaN(v)) return 4;
+
+    if (v >= -2.729 && v < -0.9118) return 12;  // high → biggest
+    if (v >= -0.9118 && v < -0.2350) return 6; // medium
+    if (v >= -0.2350 && v <= 1.0380) return 3;  // low → smallest
+
+    return 6; // fallback
+}
+
+
+function getPiColor(value) {
+  return '#9b59b6'; // purple for all
+}
+
+function piStyle(feature) {
+  const value = feature.properties["13pi"];
+  return {
+    radius: getPiRadius(value),
+    fillColor: getPiColor(value),
+    color: 'rgba(0,0,0,0.4)',
+    weight: 1.5,
+    fillOpacity: 0.85,
+    className: 'ball-shadow'
+  };
+}
+
+map.createPane('piPane');
+map.getPane('piPane').style.zIndex = 650;
+map.getPane('piPane').style.pointerEvents = 'auto';
+
+fetch('peace_data/pi.geojson')
+    .then(r => r.json())
+    .then(data => {
+        data.features.forEach(f => {
+            const latlng = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
+            L.circleMarker(latlng, {
+                radius: getPiRadius(f.properties["13pi"]),
+                fillColor: getPiColor(f.properties["13pi"]),
+                color: 'rgba(0,0,0,0.4)',
+                weight: 1.5,
+                fillOpacity: 0.85,
+                className: 'ball-shadow',
+                pane: 'piPane'  // ensures on top
+            })
+            .bindPopup(`<strong>${f.properties.ADM0_NAME}</strong><br>Political Index: ${f.properties["13pi"]}`)
+            .addTo(map);
+        });
+    });
+
+// ---- POU Legend ----
+const pouLegend = L.control({ position: 'bottomright' });
+
+pouLegend.onAdd = function(map) {
+  const div = L.DomUtil.create('div', 'legend');
+  const grades = [
+    { label: "2–5", color: "#f5e6b3" },
+    { label: "5–10", color: "#e8c97a" },
+    { label: "10–20", color: "#d1a054" },
+    { label: "20–30", color: "#a9712a" },
+    { label: "30–40", color: "#7a4a1b" },
+    { label: "40+", color: "#4a2c0a" },
+    { label: "0 (Missing data)", color: "#cccccc" },
+  ];
+  const labels = [];
+
+  div.innerHTML += "<strong>POU 2023 (%)</strong><br>";
+  div.innerHTML += `
+    <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:4px;">
+    <div style="
+      height: 18px;
+      width: 150px;
+      background: linear-gradient(to right,
+        #f5e6b3,  /* low 2-15 */
+        #e8c97a,  /* medium 15-30 */
+        #a9712a,  /* medium-high 20-30 */
+        #7a4a1b,  /* high 30-40 */
+        #4a2c0a   /* very high 40+ */
+      );
+      border: 1px solid #333;
+      // margin-bottom:4px;
+    "></div>
+  `;
+   div.innerHTML += `
+    <div style="display:flex; justify-content:space-between; font-size:12px;">
+      <span>Low PoU</span>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span>High PoU</span>
+    </div>
+  `;
+
+  grades.forEach(g => {
+    div.innerHTML += `
+      <div style="display:flex; align-items:center; margin-bottom:4px;">
+        <div style="
+          width:18px;
+          height:18px;
+          background:${g.color};
+          margin-right:8px;
+          border:1px solid #333;
+        "></div>
+        <span>${g.label}</span>
+      </div>
+    `;
+  });
+
+  // for (let i = 0; i < grades.length; i++) {
+  //   const from = grades[i];
+  //   const to = grades[i + 1];
+  //   const color = getPouColor(from + 1);
+
+  //   labels.push(
+  //     `<i style="background:${color}"></i> ${from}${to ? '&ndash;' + to : '+'}`
+  //   );
+  // }
+
+  div.innerHTML += labels.join('<br>');
+  return div;
+};
+
+pouLegend.addTo(map);
+
+
+// PI Legend
+const piLegend = L.control({ position: 'bottomleft' });
+
+piLegend.onAdd = function(map) {
+  const div = L.DomUtil.create('div', 'legend pi-legend-container');
+  div.innerHTML += "<strong>Political Instability Index (PI)</strong><br>";
+  const grades = [
+    { range: "High -2.729 – -0.9118", size: 20 },
+    { range: "Medium -0.9118 – -0.2350", size: 12 },
+    { range: "Low -0.2350 – 1.0380", size: 6 }
+  ];
+
+ grades.forEach(g => {
+    div.innerHTML += `
+      <div style="display:flex; align-items:center; margin-bottom:4px;">
+        <div style="
+          width:${g.size}px;
+          height:${g.size}px;
+          background:#9b59b6;
+          border-radius:50%;
+          border:1.5px solid rgba(0,0,0,0.4);
+          margin-right:8px;
+          flex-shrink:0;
+        "></div>
+        <span>${g.range}</span>
+      </div>
+    `;
+  });
+
+  return div;
+};
+
+piLegend.addTo(map);
+
+
+</script>
+
+
+</body>
+</html>
