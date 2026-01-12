@@ -32,7 +32,7 @@
           padding: 20px;
           border-radius: 5px;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-          border-left: 5px solid #DDA63A; /* Official SDG 2 Yellow */
+          border-left: 5px solid #DDA63A; 
           max-width: 450px;
       }
 
@@ -44,7 +44,7 @@
 
       .icon-container img {
           width: 85px;
-          height: auto; /* Maintains aspect ratio */
+          height: auto; 
           display: block;
       }
 
@@ -66,7 +66,7 @@
           margin: 0;
           font-size: 24px;
           font-weight: 800;
-          color: #9b59b6;
+          color: black;
           line-height: 1.1;
       }
 
@@ -85,10 +85,9 @@
       }
 
       .description strong {
-          color: #DDA63A; /* Highlights the SDG goal name in the brand color */
+          color: #DDA63A; 
       }
 
-      /* Refined Legend Style */
       .legend {
           background: rgba(255, 255, 255, 0.9) !important;
           backdrop-filter: blur(5px);
@@ -103,7 +102,6 @@
           border-radius: 3px;
       }
 
-      /* Leaflet control placement tweak */
       .leaflet-top.leaflet-left {
           margin-top: 230px; 
           margin-left: 10px;
@@ -135,15 +133,14 @@
           );
         }
 
-        /* Target the legend specifically to move it 10px to the left */
         .pi-legend-container {
-            margin-left: 20px !important; /* Negative margin moves it closer to the left edge */
+            margin-left: 20px !important; 
             background: rgba(255, 255, 255, 0.9) !important;
             backdrop-filter: blur(5px);
             padding: 12px !important;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            border-top: 3px solid #DDA63A; /* Official SDG 2 Color */
+            border-top: 3px solid #DDA63A; 
         }
         #pou-range { width: 130px; accent-color: #DDA63A; cursor: pointer; }
         .leaflet-top.leaflet-left { margin-top: 220px; }
@@ -166,7 +163,15 @@
                 <strong>SDG 2 | Zero Hunger</strong><br>
                 Visualizing the Link Between <em>Prevalence of Undernourishment (POU)</em> 
                 vs. <em>Political Stability</em> in Africa (2023).
+            </p><br>
+            <p class="description">
+                <strong>PoU</strong> stands for Prevalence of Undernourishment(%) and is represented by the country brown gradient fill colors
+            </p><br>
+            <p class="description">
+                <strong style="color:#9b59b6">Political Instability (PI Score)</strong> is shown through circle markers and on clicking the circle you get the political Stability Index. The lower the PI the high the poilitical instability
             </p>
+            
+
         </div>
     </div>
 </div>
@@ -176,100 +181,128 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    const map = L.map('map').setView([2, 20], 4);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CARTO'
-    }).addTo(map);
+  const map = L.map('map').setView([2,15],4);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; CARTO'
+  }).addTo(map);
 
-    map.createPane('piPane');
-    map.getPane('piPane').style.zIndex = 650;
+  map.createPane('piPane'); 
+  map.getPane('piPane').style.zIndex = 650;
 
-    // Global State
-    let rawPouData, rawPiData;
-    let pouLayer;
-    const piLayerGroup = L.layerGroup().addTo(map);
+  let rawPouData, rawPiData;
+  let pouThreshold = 0, piThreshold = -2.729, piMin=-2.729;
 
-    // Styling Helpers
-    function getPouColor(d) {
-    if (d === 0 || d === null || isNaN(d)) return '#cccccc'; // gray for missing data
-    return d > 40 ? '#4a2c0a' :   // dark brown
-          d > 30 ? '#7a4a1b' :
-          d > 20 ? '#a9712a' :
-          d > 10 ? '#d1a054' :
-          d > 5  ? '#e8c97a' :
-                    '#f5e6b3';  // light gold
+  let pouLayer = L.geoJSON(null, { 
+      style:f=>({fillColor:getPouColor(f.properties.prevl2023),weight:1,color:'white',fillOpacity:0.8}),
+      onEachFeature
+  }).addTo(map);
+
+  let piLayer = L.geoJSON(null, { 
+    pointToLayer: pointToPI, 
+    pane:'piPane'
+  }).addTo(map);
+
+
+  function getPouColor(d){
+    if(d===0||d===null||isNaN(d)) return '#cccccc';
+    return d>40?'#4a2c0a':d>30?'#7a4a1b':d>20?'#a9712a':d>10?'#d1a054':d>5?'#e8c97a':'#f5e6b3';
+  }
+  function onEachFeature(f,l){
+    l.on({mouseover:e=>{e.target.setStyle({
+      weight:3,
+      color:'#DDA63A',
+      fillOpacity:0.9
+    })},
+    mouseout:e=>{
+      pouLayer.resetStyle(e.target)
+    },
+    click:e=>map.fitBounds(e.target.getBounds())
+  });
+    l.bindPopup(`<strong>${
+      f.properties.ADM0_NAME}</strong><br>POU: ${f.properties.prevl2023}%`);
   }
 
-    function getPiRadius(value) {
-      const v = Number(value);
-      if (isNaN(v)) return 4;
+  function getPiRadius(v){
+    return v>=-2.729 && v<-0.9118?12:v>=-0.9118&&v<-0.235?8:v>=-0.235&&v<=1.038?4:6; }
+  function pointToPI(f,latlng){
+  return L.circleMarker(latlng,{radius:getPiRadius(f.properties["13pi"]),fillColor:'#9b59b6',color:'#000',weight:1,fillOpacity:0.9,className:'ball-shadow'}).bindPopup(`<strong>${f.properties.ADM0_NAME}</strong><br>PI Score: ${f.properties["13pi"]}`);
+  }
 
-      if (v >= -2.729 && v < -0.9118) return 12;  // high → biggest
-      if (v >= -0.9118 && v < -0.2350) return 6; // medium
-      if (v >= -0.2350 && v <= 1.0380) return 3;  // low → smallest
+  function filterMaps(){
+  if(!rawPouData||!rawPiData) return;
 
-      return 6; // fallback
-    }
+  document.getElementById('range-value-pou').innerText = pouThreshold===0?'All countries':`POU ≥ ${pouThreshold}%`;
+  document.getElementById('range-value-pi').innerText = piThreshold===piMin?'All PI':`PI ≥ ${piThreshold.toFixed(2)}`;
 
-    // Interactive Logic
-    function onEachFeature(feature, layer) {
-        layer.on({
-            mouseover: (e) => { e.target.setStyle({ weight: 3, color: '#DDA63A', fillOpacity: 0.9 }); },
-            mouseout: (e) => { pouLayer.resetStyle(e.target); },
-            click: (e) => map.fitBounds(e.target.getBounds())
-        });
-        layer.bindPopup(`<strong>${feature.properties.ADM0_NAME}</strong><br>POU: ${feature.properties.prevl2023}%`);
-    }
+  pouLayer.clearLayers();
+  piLayer.clearLayers();
 
+  const filteredPou = rawPouData.features.filter(f=>f.properties.prevl2023>=pouThreshold);
+  pouLayer.addData({type:'FeatureCollection',features:filteredPou});
 
-    // Controls
-    const filterControl = L.control({ position: 'topright' });
+  const filteredPi = rawPiData.features.filter(f=>{
+  const country = filteredPou.find(p=>p.properties.ADM0_CODE===f.properties.ADM0_CODE);
+  return country && f.properties["13pi"]>=piThreshold;
+  });
+  piLayer.addData({type:'FeatureCollection',features:filteredPi});
+  }
+
+  const filterControl = L.control({ position: 'topright' });
     filterControl.onAdd = function() {
-        const div = L.DomUtil.create('div', 'leaflet-control-filter legend');
-        div.innerHTML = `
-          <div style="font-size:13px; font-weight:700; margin-bottom:6px; color:#333;">
-            Prevalence of Undernourishment(POU): Hunger Threshold
+    const div=L.DomUtil.create('div','legend');
+    div.innerHTML = `
+      <div style="
+          background: rgba(255, 255, 255, 0.9);
+          backdrop-filter: blur(6px);
+          padding: 16px 20px;
+          border-radius: 10px;
+          box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+          max-width: 300px;
+          font-family: 'Segoe UI', Arial, sans-serif;
+          color: #333;
+          line-height: 1.4;
+      ">
+
+          <div style="margin-bottom: 20px;">
+              <strong style="font-size:14px; color:#DDA63A;">POU Filter (Prevalence of Undernourishment)</strong>
+              <p style="font-size:12px; margin:6px 0;">
+                  Filter countries by minimum percentage of undernourishment. 
+                  Only countries with POU ≥ selected value will remain visible.
+              </p>
+              <input id="pou-range" type="range" min="0" max="50" value="0" 
+                  style="width:100%; accent-color:#DDA63A; cursor:pointer; margin:8px 0;">
+              <div id="range-value-pou" style="text-align:center; font-weight:700; color:#DDA63A;">All countries</div>
           </div>
 
-          <div style="font-size:12px; line-height:1.4; color:#555; margin-bottom:10px;">
-            Use this slider to filter countries by the <strong>minimum prevalence of undernourishment (POU)</strong>.
-            <br><br>
-            <strong>What you will see:</strong>
-            <ul style="margin:6px 0 6px 16px; padding:0;">
-              <li>Only countries with POU <em>equal to or above</em> the selected value remain visible.</li>
-              <li>Political instability bubbles update to match the filtered countries.</li>
-            </ul>
-            <strong>Tip:</strong> Set to <strong>0%</strong> to view <em>all countries</em>.
+          <div>
+              <strong style="font-size:14px; color:#9b59b6;">PI Filter (Political Instability)</strong>
+              <p style="font-size:12px; margin:6px 0;">
+                  Filter political instability scores by minimum threshold.
+                  Only PI bubbles ≥ selected value will appear. POU coloring remains independent.
+              </p>
+              <input id="pi-range" type="range" min="-2.729" max="1.038" step="0.01" value="-2.729" 
+                  style="width:100%; accent-color:#9b59b6; cursor:pointer; margin:8px 0;">
+              <div id="range-value-pi" style="text-align:center; font-weight:700; color:#9b59b6;">All PI</div>
           </div>
 
-          <input id="pou-range" type="range" min="0" max="50" value="0" style="width:100%;">
-
-          <div id="range-value"
-              style="text-align:center; font-weight:700; color:#DDA63A; margin-top:6px;">
-            All countries
+          <div style="font-size:11px; color:#555; margin-top:12px;">
+              <em>Tip:</em> Adjust the sliders to explore how undernourishment and political instability vary across countries. 
+              You can move each slider independently.
           </div>
-        `;
 
-        L.DomEvent.disableClickPropagation(div);
-        const slider = div.querySelector('#pou-range');
-        slider.addEventListener('input', (e) => filterMaps(e.target.value));
-        return div;
+      </div>
+      `;
+
+
+    L.DomEvent.disableClickPropagation(div);
+
+    div.querySelector('#pou-range').addEventListener('input',e=>{ pouThreshold=parseInt(e.target.value); filterMaps(); });
+    div.querySelector('#pi-range').addEventListener('input',e=>{ piThreshold=parseFloat(e.target.value); filterMaps(); });
+
+    return div;
     };
+    filterControl.addTo(map);
 
-    const piLegend = L.control({ position: 'bottomleft' });
-    piLegend.onAdd = function() {
-        const div = L.DomUtil.create('div', 'legend pi-legend-container');
-        div.innerHTML = '<strong>Political Instability</strong><br>';
-        const levels = [{l: 'High', s: 14}, {l: 'Medium', s: 8}, {l: 'Low', s: 4}];
-        levels.forEach(lvl => {
-            div.innerHTML += `<div style="display:flex; align-items:center; margin-top:4px;">
-                <div style="width:${lvl.s*2}px; height:${lvl.s*2}px; background:#9b59b6; border-radius:50%; margin-right:8px; border:1px solid #000;"></div>
-                <span>${lvl.l}</span></div>`;
-        });
-        return div;
-    };
-
-    // 4. DEFINE THE POU LEGEND
     const pouLegend = L.control({ position: 'bottomright' });
     pouLegend.onAdd = function(map) {
       const div = L.DomUtil.create('div', 'legend');
@@ -291,11 +324,11 @@
           height: 18px;
           width: 150px;
           background: linear-gradient(to right,
-            #f5e6b3,  /* low 2-15 */
-            #e8c97a,  /* medium 15-30 */
-            #a9712a,  /* medium-high 20-30 */
-            #7a4a1b,  /* high 30-40 */
-            #4a2c0a   /* very high 40+ */
+            #f5e6b3,  
+            #e8c97a,  
+            #a9712a,  
+            #7a4a1b,  
+            #4a2c0a   
           );
           border: 1px solid #333;
           // margin-bottom:4px;
@@ -329,95 +362,37 @@
       div.innerHTML += labels.join('<br>');
       return div;
     };
+    pouLegend.addTo(map);
 
-    // MAIN FILTER FUNCTION
-    function filterMaps(minValue) {
-      const display = document.getElementById('range-value');
-      if (display) {
-          display.innerText = 'PoU >' + ' ' + minValue + '%';
-      }
+    const piLegend = L.control({ position: 'bottomleft' });
+      piLegend.onAdd = function() {
+          const div = L.DomUtil.create('div', 'legend pi-legend-container');
+          div.innerHTML = '<strong>Political Instability</strong><br>';
+          const levels = [{l: 'High', s: 14}, {l: 'Medium', s: 8}, {l: 'Low', s: 4}];
+          levels.forEach(lvl => {
+              div.innerHTML += `
+              <div style="display:flex; align-items:center; margin-top:4px;">
+              <div style="width:${lvl.s*2}px; height:${lvl.s*2}px; background:#9b59b6; border-radius:50%; margin-right:8px; border:1px solid #000;"></div>
+              <span>${lvl.l}</span></div>`;
+          });
+          return div;
+      };
+    piLegend.addTo(map);
 
-      // 1. CLEAR ANY EXISTING LAYERS (Choropleth & Bubbles)
-      // This wipes the map clean so we can redraw the filtered version
-      map.eachLayer((layer) => {
-        // Remove POU features
-        if (layer.feature && layer.feature.properties && layer.feature.properties.prevl2023 !== undefined) {
-          map.removeLayer(layer);
-        }
-        // Remove PI features (the bubbles)
-        if (layer.options && layer.options.pane === 'piPane') {
-          map.removeLayer(layer);
-        }
-      });
+  Promise.all([
+    fetch('peace_data/pou.geojson').then(r=>r.json()),
+    fetch('peace_data/pi.geojson').then(r=>r.json())
+  ]).then(([pouData,piData])=>{
+    rawPouData=pouData;
+    rawPiData=piData;
+    filterMaps();
 
-      // 2. UI SYNC: Uncheck BOTH checkboxes in the menu
-      const layerCheckboxes = document.querySelectorAll('.leaflet-control-layers-overlays input');
-      layerCheckboxes.forEach(checkbox => {
-          const label = checkbox.nextSibling.innerText.trim();
-          if (label.includes("Hunger Levels") || label.includes("Political Instability")) {
-              // Only keep checked if we are at exactly 0 (The "Reset" state)
-              checkbox.checked = (parseInt(minValue) === 0); 
-          }
-      });
-
-      // 3. DRAW FILTERED CHOROPLETH (POU)
-      pouLayer = L.geoJSON(rawPouData, {
-          style: (f) => ({ 
-              fillColor: getPouColor(f.properties.prevl2023), 
-              weight: 1, 
-              color: 'white', 
-              fillOpacity: 1.0 
-          }),
-          onEachFeature: onEachFeature,
-          // filter: (f) => f.properties.prevl2023 >= minValue 
-          filter: (f) => {
-            if (minValue === 0) return true; // 🔑 show everything
-              return f.properties.prevl2023 >= minValue;
-          }
-      }).addTo(map);
-
-      // 4. DRAW FILTERED BUBBLES (PI)
-      // We draw these directly to the map (not just the group) to ensure they refresh
-      L.geoJSON(rawPiData, {
-          filter: (f) => {
-              const c = rawPouData.features.find(p => p.properties.ADM0_CODE === f.properties.ADM0_CODE);
-              return c && c.properties.prevl2023 >= minValue;
-          },
-          pointToLayer: (f, latlng) => L.circleMarker(latlng, {
-              radius: getPiRadius(f.properties["13pi"]),
-              fillColor: '#9b59b6', 
-              color: '#000', 
-              weight: 1, 
-              fillOpacity: 0.9, 
-              className: 'ball-shadow', 
-              pane: 'piPane'
-          }).bindPopup(`<strong>${f.properties.ADM0_NAME}</strong><br>PI Score: ${f.properties["13pi"]}`)
-      }).addTo(map);
-  }
-
-    // Load everything once
-    // --- Initialization ---
-    Promise.all([
-      fetch('peace_data/pou.geojson').then(r => r.json()),
-      fetch('peace_data/pi.geojson').then(r => r.json())
-    ]).then(([pouData, piData]) => {
-        rawPouData = pouData;
-        rawPiData = piData;
-        
-        // Add UI components to map
-        filterControl.addTo(map);
-        piLegend.addTo(map);
-        pouLegend.addTo(map);
-        
-        // Now that UI is added, run the initial filter
-        filterMaps(0); 
-
-        // Add Layer Toggle
-        L.control.layers(null, {
-            "Hunger Levels": pouLayer,
-            "Political Instability": piLayerGroup
-        }, {collapsed: false}).addTo(map);
+    L.control.layers(null,{
+    "Hunger Levels(PoU)": pouLayer,
+    "Political Instability": piLayer
+    },{collapsed:false}).addTo(map);
   });
 </script>
 </body>
 </html>
+
