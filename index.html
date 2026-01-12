@@ -5,7 +5,7 @@
     <meta property="og:title" content="Advanced Cartography: The Price of Peace">
     <meta property="og:description" content="A spatial analysis of SDG 2: Zero Hunger vs Political Stability in Africa.">
     <meta property="og:image" content="images/sdg2.png">
-    <title>SDG 2 – Zero Hunger: Price of Peace</title>
+    <title>SDG 2: Zero Hunger: Price of Peace</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         html, body {
@@ -358,10 +358,10 @@
           </div>
         `;
       });
-
       div.innerHTML += labels.join('<br>');
       return div;
     };
+    
     pouLegend.addTo(map);
 
     const piLegend = L.control({ position: 'bottomleft' });
